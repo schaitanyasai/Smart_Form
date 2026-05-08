@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Property Enquiry</title>
+
+  <!-- ✅ CRITICAL FIX FOR MOBILE -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 20px; /* ✅ mobile spacing */
+      background: #0d0d0d;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh; /* ✅ FIXED */
+    }
+
+    .container {
+      background: #121212;
+      padding: 30px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px; /* ✅ responsive */
+      box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    }
+
+    h2 {
+      margin-bottom: 5px;
+    }
+
+    p {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 25px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      background: #1e1e1e;
+      color: white;
+      font-size: 14px;
+      box-sizing: border-box; /* ✅ prevents overflow */
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #777;
+    }
+
+    textarea {
+      height: 80px;
+      resize: none;
+    }
+
+    select {
+      color: #aaa;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #7c3aed;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #6d28d9;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #777;
+      margin-bottom: 10px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h2>Smart Property Enquiry</h2>
+    <p>Fill this form and our agent will contact you within minutes.</p>
+
+    <input id="name" placeholder="Full Name" />
+
+    <input 
+      id="phone" 
+      placeholder="WhatsApp (e.g. 971XXXXXXXXX / 1XXXXXXXXX)" 
+      inputmode="numeric"
+    />
+
+    <input id="email" placeholder="Email Address" />
+
+    <label style="font-size:13px; color:#bbb; display:block; margin-bottom:6px;">
+      Property Requirement (be specific)
+    </label>
+
+    <textarea id="requirement" placeholder="Enter your property requirement..."></textarea>
+
+    <div style="font-size:12px; color:#777; margin-top:-8px; margin-bottom:15px;">
+      Example: Need 2BHK in Dubai Marina under 2M, ready to buy.  
+      Mention: area, bedrooms, budget, purpose (buy/rent/commercial/offplan/lease) and any other preferences
+    </div>
+
+    <select id="timeline">
+      <option value="">Select Timeline</option>
+      <option>Immediately</option>
+      <option>Within 2-3 weeks</option>
+      <option>1-3 months</option>
+      <option>Just exploring</option>
+    </select>
+
+    <div id="error-msg" style="font-size:13px; margin-bottom:10px;"></div>
+
+    <button id="submitBtn" onclick="submitLead()" disabled style="opacity:0.5; cursor:not-allowed;">
+      Submit
+    </button>
+
+    <div id="success-msg" style="display:none; color:#4ade80; margin-top:10px;">
+      Lead submitted successfully ✓
+    </div>
+  </div>
+<script>
+const phoneInput = document.getElementById("phone");
+const submitBtn = document.getElementById("submitBtn");
+const errorMsg = document.getElementById("error-msg");
+
+/* ✅ DYNAMIC CLIENT DETECTION */
+const path = window.location.pathname;
+const clientId = path.split("/").pop();
+
+/* 🔴 LIVE CLEANING */
+phoneInput.addEventListener("input", function () {
+  let value = this.value.replace(/\D/g, "");
+
+  if (value.startsWith("0")) {
+    value = value.replace(/^0+/, "");
+  }
+
+  this.value = value;
+  validatePhone();
+});
+
+function validatePhone() {
+  const phone = phoneInput.value;
+
+  if (/^\d{10,15}$/.test(phone)) {
+    errorMsg.innerText = "✓ Valid number";
+    errorMsg.style.color = "#4ade80";
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = "1";
+    submitBtn.style.cursor = "pointer";
+  } else {
+    errorMsg.innerText =
+      "Enter full number with country code (e.g. 971XXXXXXXXX)";
+    errorMsg.style.color = "#ff4d4d";
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = "0.5";
+    submitBtn.style.cursor = "not-allowed";
+  }
+}
+
+async function submitLead() {
+
+  let name = document.getElementById("name").value.trim();
+  let phone = phoneInput.value.trim();
+  let email = document.getElementById("email").value.trim();
+  let requirement = document.getElementById("requirement").value.trim();
+  let timeline = document.getElementById("timeline").value;
+
+  if (!name || !phone || !email || !requirement || !timeline) {
+    errorMsg.innerText = "Please fill all fields";
+    errorMsg.style.color = "#ff4d4d";
+    return;
+  }
+
+  try {
+
+    await fetch("https://hook.eu1.make.com/1zsb9m21iybs2abb9i3k4aaxeubucg5q", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        name,
+        phone,
+        email,
+        requirement,
+        timeline,
+
+        /* ✅ MULTI-CLIENT SaaS FIELD */
+        client_id: clientId
+      })
+    });
+
+    document.getElementById("success-msg").style.display = "block";
+
+    document.getElementById("name").value = "";
+    phoneInput.value = "";
+    document.getElementById("email").value = "";
+    document.getElementById("requirement").value = "";
+    document.getElementById("timeline").value = "";
+
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = "0.5";
+
+  } catch (err) {
+    errorMsg.innerText = "Something went wrong. Please try again.";
+    errorMsg.style.color = "#ff4d4d";
+  }
+}
+</script>
+
+</body>
+</html>
