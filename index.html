@@ -3,20 +3,23 @@
 <head>
   <title>Smart Property Enquiry</title>
 
-  <!-- ✅ CRITICAL FIX FOR MOBILE -->
+  <!-- ✅ MOBILE -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- ✅ SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
   <style>
     body {
       margin: 0;
-      padding: 20px; /* ✅ mobile spacing */
+      padding: 20px;
       background: #0d0d0d;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       color: white;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh; /* ✅ FIXED */
+      min-height: 100vh;
     }
 
     .container {
@@ -24,7 +27,7 @@
       padding: 30px;
       border-radius: 16px;
       width: 100%;
-      max-width: 420px; /* ✅ responsive */
+      max-width: 420px;
       box-shadow: 0 0 40px rgba(0,0,0,0.6);
     }
 
@@ -48,10 +51,11 @@
       background: #1e1e1e;
       color: white;
       font-size: 14px;
-      box-sizing: border-box; /* ✅ prevents overflow */
+      box-sizing: border-box;
     }
 
-    input::placeholder, textarea::placeholder {
+    input::placeholder,
+    textarea::placeholder {
       color: #777;
     }
 
@@ -86,20 +90,29 @@
       margin-bottom: 10px;
     }
 
+    .loading {
+      text-align: center;
+      color: #aaa;
+      font-size: 14px;
+    }
   </style>
 </head>
 
 <body>
 
-  <div class="container">
+  <div class="container" id="form-container">
+
     <h2>Smart Property Enquiry</h2>
-    <p>Fill this form and our agent will contact you within minutes.</p>
+
+    <p id="client-label">
+      Fill this form and our agent will contact you within minutes.
+    </p>
 
     <input id="name" placeholder="Full Name" />
 
-    <input 
-      id="phone" 
-      placeholder="WhatsApp (e.g. 971XXXXXXXXX / 1XXXXXXXXX)" 
+    <input
+      id="phone"
+      placeholder="WhatsApp (e.g. 971XXXXXXXXX / 1XXXXXXXXX)"
       inputmode="numeric"
     />
 
@@ -109,11 +122,14 @@
       Property Requirement (be specific)
     </label>
 
-    <textarea id="requirement" placeholder="Enter your property requirement..."></textarea>
+    <textarea
+      id="requirement"
+      placeholder="Enter your property requirement..."
+    ></textarea>
 
     <div style="font-size:12px; color:#777; margin-top:-8px; margin-bottom:15px;">
-      Example: Need 2BHK in Dubai Marina under 2M, ready to buy.  
-      Mention: area, bedrooms, budget, purpose (buy/rent/commercial/offplan/lease) and any other preferences
+      Example: Need 2BHK in Dubai Marina under 2M, ready to buy.
+      Mention: area, bedrooms, budget, purpose and preferences
     </div>
 
     <select id="timeline">
@@ -126,26 +142,100 @@
 
     <div id="error-msg" style="font-size:13px; margin-bottom:10px;"></div>
 
-    <button id="submitBtn" onclick="submitLead()" disabled style="opacity:0.5; cursor:not-allowed;">
+    <button
+      id="submitBtn"
+      onclick="submitLead()"
+      disabled
+      style="opacity:0.5; cursor:not-allowed;"
+    >
       Submit
     </button>
 
-    <div id="success-msg" style="display:none; color:#4ade80; margin-top:10px;">
+    <div
+      id="success-msg"
+      style="display:none; color:#4ade80; margin-top:10px;"
+    >
       Lead submitted successfully ✓
     </div>
-  </div>
-<script>
-const phoneInput = document.getElementById("phone");
-const submitBtn = document.getElementById("submitBtn");
-const errorMsg = document.getElementById("error-msg");
 
-/* ✅ DYNAMIC CLIENT DETECTION */
-const path = window.location.pathname;
+  </div>
+
+<script>
+
+/* =========================================================
+   ✅ SUPABASE CONFIG
+========================================================= */
+
+const SUPABASE_URL = "https://ypwpuexsjkrhogfiagqu.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_IWlZAjFrbRwCEK7BlDdu8Q_r0PXfJkA";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
+/* =========================================================
+   ✅ CLIENT DETECTION
+========================================================= */
+
 const params = new URLSearchParams(window.location.search);
 const clientId = params.get("client_id");
 
-/* 🔴 LIVE CLEANING */
+/* =========================================================
+   ✅ DOM ELEMENTS
+========================================================= */
+
+const phoneInput = document.getElementById("phone");
+const submitBtn = document.getElementById("submitBtn");
+const errorMsg = document.getElementById("error-msg");
+const clientLabel = document.getElementById("client-label");
+
+/* =========================================================
+   ✅ VALIDATE CLIENT FROM SUPABASE
+========================================================= */
+
+async function validateClient() {
+
+  if (!clientId) {
+    document.body.innerHTML = `
+      <div class="loading">
+        Invalid Client Link
+      </div>
+    `;
+    return false;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("client_config")
+    .select("*")
+    .eq("client_id", clientId)
+    .single();
+
+  if (error || !data) {
+
+    document.body.innerHTML = `
+      <div class="loading">
+        Client Not Found
+      </div>
+    `;
+
+    return false;
+  }
+
+  clientLabel.innerText =
+    `Connected to ${data.client_name}`;
+
+  console.log("VALID CLIENT:", data.client_name);
+
+  return true;
+}
+
+/* =========================================================
+   ✅ PHONE CLEANING
+========================================================= */
+
 phoneInput.addEventListener("input", function () {
+
   let value = this.value.replace(/\D/g, "");
 
   if (value.startsWith("0")) {
@@ -153,27 +243,43 @@ phoneInput.addEventListener("input", function () {
   }
 
   this.value = value;
+
   validatePhone();
 });
 
+/* =========================================================
+   ✅ PHONE VALIDATION
+========================================================= */
+
 function validatePhone() {
+
   const phone = phoneInput.value;
 
   if (/^\d{10,15}$/.test(phone)) {
+
     errorMsg.innerText = "✓ Valid number";
     errorMsg.style.color = "#4ade80";
+
     submitBtn.disabled = false;
     submitBtn.style.opacity = "1";
     submitBtn.style.cursor = "pointer";
+
   } else {
+
     errorMsg.innerText =
-      "Enter full number with country code (e.g. 971XXXXXXXXX)";
+      "Enter full number with country code";
+
     errorMsg.style.color = "#ff4d4d";
+
     submitBtn.disabled = true;
     submitBtn.style.opacity = "0.5";
     submitBtn.style.cursor = "not-allowed";
   }
 }
+
+/* =========================================================
+   ✅ SUBMIT LEAD
+========================================================= */
 
 async function submitLead() {
 
@@ -184,30 +290,34 @@ async function submitLead() {
   let timeline = document.getElementById("timeline").value;
 
   if (!name || !phone || !email || !requirement || !timeline) {
+
     errorMsg.innerText = "Please fill all fields";
     errorMsg.style.color = "#ff4d4d";
+
     return;
   }
 
   try {
 
-    await fetch("https://hook.eu1.make.com/1zsb9m21iybs2abb9i3k4aaxeubucg5q", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+    await fetch(
+      "https://hook.eu1.make.com/1zsb9m21iybs2abb9i3k4aaxeubucg5q",
+      {
+        method: "POST",
 
-      body: JSON.stringify({
-        name,
-        phone,
-        email,
-        requirement,
-        timeline,
+        headers: {
+          "Content-Type": "application/json"
+        },
 
-        /* ✅ MULTI-CLIENT SaaS FIELD */
-        client_id: clientId
-      })
-    });
+        body: JSON.stringify({
+          client_id: clientId,
+          name,
+          phone,
+          email,
+          requirement,
+          timeline
+        })
+      }
+    );
 
     document.getElementById("success-msg").style.display = "block";
 
@@ -221,10 +331,20 @@ async function submitLead() {
     submitBtn.style.opacity = "0.5";
 
   } catch (err) {
-    errorMsg.innerText = "Something went wrong. Please try again.";
+
+    errorMsg.innerText =
+      "Something went wrong. Please try again.";
+
     errorMsg.style.color = "#ff4d4d";
   }
 }
+
+/* =========================================================
+   ✅ INIT
+========================================================= */
+
+validateClient();
+
 </script>
 
 </body>
