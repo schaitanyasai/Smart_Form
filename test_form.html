@@ -141,7 +141,8 @@ const errorMsg = document.getElementById("error-msg");
 
 /* ✅ DYNAMIC CLIENT DETECTION */
 const path = window.location.pathname;
-const clientId = path.split("/").pop();
+const params = new URLSearchParams(window.location.search);
+const clientId = params.get("client_id");
 
 /* 🔴 LIVE CLEANING */
 phoneInput.addEventListener("input", function () {
